@@ -29,31 +29,30 @@ Adotámos a **Arquitetura Hexagonal (Ports & Adapters)** para garantir o cumprim
 - `src/api/`: Porta de entrada para pedidos externos (Adaptadores de Entrada).
 - `tests/`: Testes unitários focados no Core.
 
-### Diagrama de Arquitetura Hexagonal (C4 - Context/Container)
+### Diagrama de Arquitetura Hexagonal
 
-```plantuml
-@startuml
-!define RECTANGLE class
+```mermaid
+graph TD
+    subgraph Entrada [Adaptadores de Entrada API]
+        API[Express Router]
+    end
 
-rectangle "Adaptadores de Entrada (API)" {
-  [Express Router (fleetRoutes)] as API
-}
+    subgraph Core_Layer [Core - Domínio e Aplicação]
+        Service[FleetService]
+        Entity[Vehicle Entity]
+        Port[[IVehicleRepository]]
+    end
 
-rectangle "Core (Domínio e Aplicação)" {
-  [FleetService] as Service
-  [Vehicle (Entity)] as Entity
-  () "IVehicleRepository (Port)" as IRepo
-}
+    subgraph Saida [Adaptadores de Saída Infraestrutura]
+        Repo[(InMemoryVehicleRepo)]
+    end
 
-rectangle "Adaptadores de Saída (Infra)" {
-  [InMemoryVehicleRepo] as MemoryRepo
-}
-
-API --> Service : Chama Casos de Uso
-Service --> Entity : Valida Regras
-Service --> IRepo : Usa o Contrato
-MemoryRepo ..|> IRepo : Implementa
-@enduml
+    API -->|Chama Casos de Uso| Service
+    Service -->|Valida Regras| Entity
+    Service -->|Usa Contrato| Port
+    Repo -.->|Implementa Interface DIP| Port
+    
+    style Core_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
 ```
 ---
 
