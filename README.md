@@ -120,20 +120,26 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 ---
 
 ## 5. Como Executar (POC)
+
 1. Instalar dependências: `npm install`
 2. Iniciar o servidor da API: `npm start`
 3. Executar Testes Unitários: `npm test`
 
-   Testar a API (via Postman / cURL)
-   Registo de um novo veículo:
-    Método: POST
-    URL: http://localhost:3000/api/vehicles
-    Headers: * Content-Type: application/json
-        Authorization: super-secret-token-fase1
-    Body (JSON):
-        {
-        "id": "v1",
-        "licensePlate": "AA-00-XX",
-        "brand": "Tesla",
-        "currentSpeed": 50
-        }
+### Testar a API (via Postman / cURL)
+
+**Registo de um novo veículo:**
+
+* **Método:** `POST`
+* **URL:** `http://localhost:3000/api/vehicles`
+* **Headers:**
+  * `Content-Type: application/json`
+  * `Authorization: super-secret-token-fase1`
+* **Body (JSON):**
+
+```json
+{
+  "id": "v1",
+  "licensePlate": "AA-00-XX",
+  "brand": "Tesla",
+  "currentSpeed": 50
+}
