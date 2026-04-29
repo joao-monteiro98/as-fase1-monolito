@@ -6,13 +6,15 @@
 ---
 
 ## 1. Enquadramento e Requisitos Não Funcionais (RNF)
-Nesta primeira fase, o foco principal não é a complexidade distribuída, mas sim a robustez interna da aplicação. O sistema foi concebido para suportar a gestão de veículos e dados de telemetria básica.
+**O Problema:** A empresa necessita de um sistema de Telemetria e Gestão de Frota que evoluirá futuramente para suportar processamento assíncrono (recolha massiva de dados de GPS) e múltiplos domínios (veículos e viagens). Nesta primeira fase, o objetivo é construir o núcleo duro (Core) do domínio de Veículos.
 
-### RNF Prioritários:
-* **RNF1 - Manutenibilidade:** O sistema deve ser fácil de manter e evoluir. A lógica de negócio deve estar isolada de detalhes técnicos.
-* **RNF2 - Testabilidade:** Deve ser possível testar o "Core" (regras de negócio) de forma isolada, sem necessidade de bases de dados ou servidores ativos.
-* **RNF3 - Independência de Tecnologia:** A escolha da base de dados ou da framework web não deve afetar a lógica de domínio.
+### Justificação do Monólito na Fase 1
+À luz dos requisitos atuais, a implementação de uma solução distribuída (Microserviços) **não se justifica nesta fase**. A complexidade de gerir rede, orquestração e resiliência entre serviços violaria o princípio de manter a solução simples enquanto o domínio ainda está a ser explorado. O Monólito Modular providencia a separação lógica necessária (preparando o terreno para extração futura de serviços) sem a sobrecarga operacional imediata.
 
+### RNF Prioritários (Quantificados):
+* **RNF1 - Manutenibilidade:** O sistema deve garantir uma clara separação de responsabilidades. O diretório `src/core` não deve conter nenhuma dependência externa no `package.json` além das nativas da linguagem.
+* **RNF2 - Testabilidade:** O Core deve ser testável de forma isolada, com a suite de testes unitários a executar em menos de **100ms** (garantindo que não há I/O de rede ou disco).
+* **RNF3 - Independência de Tecnologia:** Trocar o repositório em memória para PostgreSQL numa fase futura não deve exigir a alteração de **nenhuma linha de código** no `FleetService` ou no `Vehicle`.
 ---
 
 ## 2. Arquitetura do Sistema
@@ -27,6 +29,32 @@ Adotámos a **Arquitetura Hexagonal (Ports & Adapters)** para garantir o cumprim
 - `src/api/`: Porta de entrada para pedidos externos (Adaptadores de Entrada).
 - `tests/`: Testes unitários focados no Core.
 
+### Diagrama de Arquitetura Hexagonal (C4 - Context/Container)
+
+```plantuml
+@startuml
+!define RECTANGLE class
+
+rectangle "Adaptadores de Entrada (API)" {
+  [Express Router (fleetRoutes)] as API
+}
+
+rectangle "Core (Domínio e Aplicação)" {
+  [FleetService] as Service
+  [Vehicle (Entity)] as Entity
+  () "IVehicleRepository (Port)" as IRepo
+}
+
+rectangle "Adaptadores de Saída (Infra)" {
+  [InMemoryVehicleRepo] as MemoryRepo
+}
+
+API --> Service : Chama Casos de Uso
+Service --> Entity : Valida Regras
+Service --> IRepo : Usa o Contrato
+MemoryRepo ..|> IRepo : Implementa
+@enduml
+```
 ---
 
 ## 3. Registo de Decisões Arquiteturais (ADR)
