@@ -108,12 +108,12 @@ graph TD
 
 ### ADR 006: Padrão Web-Queue-Worker (WQW)
 * **Data:** 07-05-2026
-* **Decisão:** Implementação de processamento assíncrono para tarefas pesadas (ex: Relatórios). A API devolve o estado `202 Accepted` e **transfere a execução** para *Workers* isolados.
+* **Decisão:** Implementação de processamento assíncrono para tarefas pesadas (ex: Relatórios). A API devolve o estado `202 Accepted` e transfere a execução para *Workers* isolados.
 * **Justificação:** Evita o bloqueio da *thread* principal do Node.js na API e permite o escalonamento independente.
 
 ### ADR 007: Estratégia de Distributed Tracing
 * **Data:** 07-05-2026
-* **Decisão:** Introdução de um `correlationId` obrigatório em todos os contratos das **Interfaces (Ports)** e Eventos, gerado num *middleware* da API.
+* **Decisão:** Introdução de um `correlationId` obrigatório em todos os contratos das Interfaces (Ports) e Eventos, gerado num middleware da API.
 * **Justificação:** Essencial para rastreabilidade (*tracing*) em sistemas assíncronos onde a execução é fragmentada.
 ---
 
@@ -132,6 +132,7 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 | Utilizador | Correção e Execução de Testes | Identificação e correção do erro de deteção de ficheiros do Jest e validação da execução no terminal. |
 | Gemini | Fase 2: Padrões Assíncronos (WQW) | Implementação do JobQueue e JobStore em memória seguindo o DIP, e do ReportWorker. |
 | Gemini | Fase 2: Observabilidade | Criação do middleware de Tracing para propagação do Correlation ID. |
+| Utilizador | Refatorização de Resiliência (Fase 2) | O código base do `ReportWorker` gerado pela IA foi reescrito manualmente para otimizar a gestão do Event Loop e garantir o correto tratamento de erros (error handling) nos casos de falha do sistema. |
 
 ---
 
