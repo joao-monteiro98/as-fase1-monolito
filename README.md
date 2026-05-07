@@ -15,6 +15,9 @@
 * **RNF1 - Manutenibilidade:** O sistema deve garantir uma clara separação de responsabilidades. O diretório `src/core` não deve conter nenhuma dependência externa no `package.json` além das nativas da linguagem.
 * **RNF2 - Testabilidade:** O Core deve ser testável de forma isolada, com a suite de testes unitários a executar em menos de **100ms** (garantindo que não há I/O de rede ou disco).
 * **RNF3 - Independência de Tecnologia:** Trocar o repositório em memória para PostgreSQL numa fase futura não deve exigir a alteração de **nenhuma linha de código** no `FleetService` ou no `Vehicle`.
+### RNF Fase 2 - Assincronismo e Observabilidade:
+* **RNF4 - Escalabilidade e Responsividade:** O sistema deve libertar o cliente HTTP imediatamente após pedidos de processamento intensivo (ex: relatórios), utilizando o padrão Web-Queue-Worker (WQW).
+* **RNF5 - Observabilidade (Distributed Tracing):** Cada fluxo de trabalho tem de ser rastreável através de um `Correlation ID` único, desde a API até aos processos em *background*.
 ---
 
 ## 2. Arquitetura do Sistema
@@ -93,7 +96,6 @@ graph TD
 * **Consequências:**
     * **Ganhos:** Garante que a lógica de negócio não é duplicada nem reside na camada de transporte (HTTP). Facilita a substituição da interface (ex: mudar de REST para GraphQL ou CLI) sem tocar no Core.
     * **Perdas:** Nenhuma para o âmbito deste projeto.
----
 
 ### ADR 005: Testes Unitários com Jest e Isolamento do Core
 * **Data:** 29-04-2026
@@ -103,6 +105,18 @@ graph TD
 * **Consequências:**
     * **Ganhos:** Feedback instantâneo sobre a correção das regras de negócio. Execução de testes em milissegundos sem necessidade de setup de infraestrutura.
     * **Perdas:** Necessidade de manter mocks/implementações em memória sincronizadas com a lógica do core.
+
+### ADR 006: Padrão Web-Queue-Worker (WQW)
+* **Data:** 07-05-2026
+* **Decisão:** Implementação de processamento assíncrono para tarefas pesadas (ex: Relatórios). A API devolve o estado `202 Accepted` e **transfere a execução** para *Workers* isolados.
+* **Justificação:** Evita o bloqueio da *thread* principal do Node.js na API e permite o escalonamento independente.
+
+### ADR 007: Estratégia de Distributed Tracing
+* **Data:** 07-05-2026
+* **Decisão:** Introdução de um `correlationId` obrigatório em todos os contratos das **Interfaces (Ports)** e Eventos, gerado num *middleware* da API.
+* **Justificação:** Essencial para rastreabilidade (*tracing*) em sistemas assíncronos onde a execução é fragmentada.
+---
+
 
 ## 4. Uso de Inteligência Artificial (IA)
 Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativa:
@@ -116,6 +130,8 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 | Gemini | Criação do Ficheiro de Composição (DIP) | O código base foi gerado pela IA, mas adaptado manualmente para otimizar os *exports*. |
 | Gemini | Criação de Testes Unitários | Gerada a estrutura do ficheiro de teste e os casos de teste para o `FleetService`. |
 | Utilizador | Correção e Execução de Testes | Identificação e correção do erro de deteção de ficheiros do Jest e validação da execução no terminal. |
+| Gemini | Fase 2: Padrões Assíncronos (WQW) | Implementação do JobQueue e JobStore em memória seguindo o DIP, e do ReportWorker. |
+| Gemini | Fase 2: Observabilidade | Criação do middleware de Tracing para propagação do Correlation ID. |
 
 ---
 
