@@ -3,6 +3,11 @@
 **Mestrado em Informática Aplicada** **Tema de Negócio:** Sistema de Telemetria e Gestão de Frota  
 **Objetivo da Fase:** "Limpar a Casa" - Organização, Abstração e Inversão de Dependência.
 
+**Grupo:**
+Vasco Domingos nº210100319
+Tiago Amorim nº120118010
+João Monteiro nº210100304
+Rodrigo Reis nº 210100494
 ---
 
 ## 1. Enquadramento e Requisitos Não Funcionais (RNF)
