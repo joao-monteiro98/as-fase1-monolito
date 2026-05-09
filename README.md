@@ -23,6 +23,8 @@ Rodrigo Reis nº 210100494
 ### RNF Fase 2 - Assincronismo e Observabilidade:
 * **RNF4 - Escalabilidade e Responsividade:** O sistema deve libertar o cliente HTTP imediatamente após pedidos de processamento intensivo (ex: relatórios), utilizando o padrão Web-Queue-Worker (WQW).
 * **RNF5 - Observabilidade (Distributed Tracing):** Cada fluxo de trabalho tem de ser rastreável através de um `Correlation ID` único, desde a API até aos processos em *background*.
+* **RNF6 - Desacoplamento de Domínio:** O sistema deve garantir que processos secundários (Notificações, Auditoria) não interfiram no desempenho ou na lógica do processo principal, utilizando uma arquitetura baseada em eventos (*Pub/Sub*).
+* **RNF7 - Resiliência e Tolerância a Falhas:** Os processos de *background* devem conseguir recuperar de falhas transitórias de rede ou infraestrutura, garantindo a execução do processamento sem intervenção manual.
 ---
 
 ## 2. Arquitetura do Sistema
@@ -61,6 +63,41 @@ graph TD
     Repo -.->|Implementa Interface DIP| Port
     
     style Core_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+```
+
+### Diagrama de Arquitetura (Fase 2 - WQW e Pub/Sub)
+
+```mermaid
+graph TD
+    subgraph API [Adaptadores de Entrada]
+        Router[Express Router]
+        Middleware[Tracing Middleware]
+    end
+
+    subgraph Core [Core - Domínio, Aplicação e Workers]
+        Service[FleetService]
+        Worker[ReportWorker]
+        Consumers[Notification & Audit Consumers]
+        Ports[[Portos: IJobQueue, IEventBus, ILogger]]
+    end
+
+    subgraph Infra [Adaptadores de Saída]
+        Queue[(InMemoryJobQueue)]
+        Bus((InMemoryEventBus))
+        Logger[ConsoleLogger]
+    end
+
+    Middleware -->|Gera CorrelationID| Router
+    Router -->|Regista Veículo| Service
+    Router -->|Adiciona Job| Queue
+    Queue -.->|Ativa via Padrão WQW| Worker
+    Worker -->|Emite Evento no Passado| Bus
+    Bus -.->|Padrão Pub/Sub| Consumers
+    
+    Worker -->|Regista Estado| Logger
+    Consumers -->|Regista Ação| Logger
+    
+    style Core fill:#e1f5fe,stroke:#01579b,stroke-width:2px
 ```
 ---
 
@@ -120,6 +157,26 @@ graph TD
 * **Data:** 07-05-2026
 * **Decisão:** Introdução de um `correlationId` obrigatório em todos os contratos das Interfaces (Ports) e Eventos, gerado num middleware da API.
 * **Justificação:** Essencial para rastreabilidade (*tracing*) em sistemas assíncronos onde a execução é fragmentada.
+
+### ADR 008: Arquitetura Baseada em Eventos (Pub/Sub)
+* **Data:** 09-05-2026
+* **Decisão:** Implementação de um barramento de eventos (*Event Bus*) em memória. O *Worker* publica eventos no passado (ex: `RelatorioGerado`) e múltiplos consumidores subscrevem-nos de forma independente.
+* **Justificação:** Promove o desacoplamento total entre o produtor (lógica de negócio) e os consumidores (infraestrutura e serviços de apoio), facilitando a extensão do sistema sem modificar o *Core*.
+
+### ADR 009: Logging Estruturado e Abstração de Observabilidade
+* **Data:** 09-05-2026
+* **Decisão:** Criação da interface (`Port`) `ILogger` para abstrair a escrita de *logs*. O `ConsoleLogger` (*Adapter*) é injetado no *Core*, garantindo que todas as mensagens incluem o `CorrelationID` e um *timestamp*.
+* **Justificação:** A utilização direta de `console.log` no domínio viola o Princípio da Inversão de Dependência (DIP) e dificulta a exportação futura para agregadores de *logs* (como ElasticSearch ou Datadog). Esta abstração centraliza a formatação e prepara o sistema para escalabilidade.
+
+### ADR 010: Mecanismo de Retry com Exponential Backoff
+* **Data:** 09-05-2026
+* **Decisão:** Implementação de um ciclo de repetição (*retry*) nativo no *Worker* de relatórios para lidar com exceções. Em caso de falha, o sistema aguarda um período exponencialmente maior (2s, 4s, 8s) antes de tentar novamente, até um limite de 3 tentativas.
+* **Justificação:** Protege os recursos do sistema contra sobrecarga (o chamado *Thundering Herd problem*) em caso de falhas de dependências, dando tempo para que os serviços externos recuperem a estabilidade.
+
+### ADR 011: Gestão de Ciclo de Vida e Composition Root
+* **Data:** 09-05-2026
+* **Decisão:** Centralização de todas as instâncias da Fase 2 no ficheiro `composition.js` como *Singletons*.
+* **Justificação:** Garante a consistência do estado entre a API e os processos em *background* (Fila e Event Bus), mantendo o DIP intacto.
 ---
 
 
@@ -138,6 +195,13 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 | Gemini | Fase 2: Padrões Assíncronos (WQW) | Implementação do JobQueue e JobStore em memória seguindo o DIP, e do ReportWorker. |
 | Gemini | Fase 2: Observabilidade | Criação do middleware de Tracing para propagação do Correlation ID. |
 | Utilizador | Refatorização de Resiliência (Fase 2) | O código base do `ReportWorker` gerado pela IA foi reescrito manualmente para otimizar a gestão do Event Loop e garantir o correto tratamento de erros (error handling) nos casos de falha do sistema. |
+| Gemini | Fase 2: Arquitetura Event-Driven | Geração dos contratos (Interfaces) do EventBus e dos consumidores base. |
+| Utilizador | Otimização de Performance no EventBus | Refatorização manual da lógica de subscrição no `InMemoryEventBus` para prevenir fugas de memória (*memory leaks*) e garantir a limpeza eficiente dos ouvint(*listeners*). |
+| Utilizador | Revisão de Nomenclatura PT-PT | Ajuste manual de todos os termos técnicos para Português de Portugal, substituindo "Portos" por "Interfaces/Ports" e refinando os ADRs. |
+| Gemini | Fase 2: Observabilidade Estruturada | Geração do contrato `ILogger` e refatorização do *Worker* para usar injeção de dependência nos *logs*. |
+| Utilizador | Robustez do Adapter de Logging | Implementação de guardas de segurança (*null checks*) no `ConsoleLogger` para a extração da *stack trace*, evitando *crashes* na aplicação caso o objeto de erro venha indefinido, e normalização temporal para a norma ISO 8601. |
+| Gemini | Fase 2: Resiliência | Estruturação do ciclo `while` para tentativas de processamento no `ReportWorker`. |
+| Utilizador | Otimização do Algoritmo de Backoff | A IA sugeriu um atraso fixo entre tentativas (*fixed delay*). O código foi reescrito manualmente para aplicar um *Exponential Backoff* usando `Math.pow()`. |
 
 ---
 
