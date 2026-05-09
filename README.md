@@ -202,6 +202,8 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 | Utilizador | Robustez do Adapter de Logging | Implementação de guardas de segurança (*null checks*) no `ConsoleLogger` para a extração da *stack trace*, evitando *crashes* na aplicação caso o objeto de erro venha indefinido, e normalização temporal para a norma ISO 8601. |
 | Gemini | Fase 2: Resiliência | Estruturação do ciclo `while` para tentativas de processamento no `ReportWorker`. |
 | Utilizador | Otimização do Algoritmo de Backoff | A IA sugeriu um atraso fixo entre tentativas (*fixed delay*). O código foi reescrito manualmente para aplicar um *Exponential Backoff* usando `Math.pow()`. |
+| Gemini | Fase 2: Wiring e Composição | Sugestão de injeção de dependências para o ecossistema assíncrono. |
+| Utilizador | Gestão de Singletons em Memória | A IA sugeriu instanciar os adaptadores diretamente nas rotas. O código foi corrigido manualmente para instanciar a Queue e o EventBus no *Composition Root*, prevenindo o isolamento entre a API e o *Worker*. |
 
 ---
 
@@ -229,3 +231,31 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
   "brand": "Tesla",
   "currentSpeed": 50
 }
+
+```
+
+## Como Executar e Testar (Fase 2)
+
+### Iniciar o Servidor
+1. No terminal, execute: `npm start`
+2. O servidor iniciará na porta 3000.
+
+### Testar a Geração de Relatórios (Caminho Feliz)
+A API agora utiliza processamento assíncrono. Para testar, faça um pedido POST (via Postman, Thunder Client ou cURL) com um JSON no *body*:
+
+```bash
+curl -X POST http://localhost:3000/api/reports/generate \
+-H "Content-Type: application/json" \
+-d '{"vehicleId": "v123"}'
+
+curl -X POST http://localhost:3000/api/reports/generate \
+-H "Content-Type: application/json" \
+-d '{"vehicleId": "FAIL"}'
+
+## Análise Comparativa (Fase 1 vs Fase 2)
+
+A evolução do monólito síncrono para a arquitetura assíncrona orientada a eventos trouxe:
+1. **Responsividade:** A API liberta o cliente em milissegundos (`202 Accepted`).
+2. **Acoplamento:** O `ReportWorker` está totalmente isolado dos serviços de notificação e auditoria via Pub/Sub.
+3. **Resiliência:** Implementação de *Retry* com *Exponential Backoff* para falhas transitórias.
+4. **Observabilidade:** Rastreabilidade total com `CorrelationID` transversal a todos os componentes.
