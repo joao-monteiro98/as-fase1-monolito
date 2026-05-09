@@ -240,7 +240,7 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 1. No terminal, execute: `npm start`
 2. O servidor iniciará na porta 3000.
 
-### Testar a Geração de Relatórios (Caminho Feliz)
+### Testar a Geração de Relatórios
 A API agora utiliza processamento assíncrono. Para testar, faça um pedido POST (via Postman, Thunder Client ou cURL) com um JSON no *body*:
 
 ```bash
@@ -251,6 +251,8 @@ curl -X POST http://localhost:3000/api/reports/generate \
 curl -X POST http://localhost:3000/api/reports/generate \
 -H "Content-Type: application/json" \
 -d '{"vehicleId": "FAIL"}'
+
+```
 
 ## Análise Comparativa (Fase 1 vs Fase 2)
 
