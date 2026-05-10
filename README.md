@@ -177,6 +177,11 @@ graph TD
 * **Data:** 09-05-2026
 * **Decisão:** Centralização de todas as instâncias da Fase 2 no ficheiro `composition.js` como *Singletons*.
 * **Justificação:** Garante a consistência do estado entre a API e os processos em *background* (Fila e Event Bus), mantendo o DIP intacto.
+
+### ADR 012: Implementação de Dead-Letter Queue (DLQ)
+* **Data:** 10-05-2026
+* **Decisão:** Criação de um porto `IDLQ` e um adaptador em memória para gerir mensagens que falham após o limite de retentativas.
+* **Justificação:** Evita a perda de mensagens e permite a observabilidade de erros persistentes sem causar ciclos infinitos de processamento, cumprindo as boas práticas do padrão Web-Queue-Worker.
 ---
 
 
@@ -204,6 +209,7 @@ Em conformidade com o enunciado, declaramos o uso de ferramentas de IA generativ
 | Utilizador | Otimização do Algoritmo de Backoff | A IA sugeriu um atraso fixo entre tentativas (*fixed delay*). O código foi reescrito manualmente para aplicar um *Exponential Backoff* usando `Math.pow()`. |
 | Gemini | Fase 2: Wiring e Composição | Sugestão de injeção de dependências para o ecossistema assíncrono. |
 | Utilizador | Gestão de Singletons em Memória | A IA sugeriu instanciar os adaptadores diretamente nas rotas. O código foi corrigido manualmente para instanciar a Queue e o EventBus no *Composition Root*, prevenindo o isolamento entre a API e o *Worker*. |
+| Utilizador | Identificação de Lacuna Crítica (DLQ) | O Utilizador identificou que a IA não previu nativamente uma Dead-Letter Queue. Forçou a criação do porto `IDLQ` e a integração no ciclo de vida do `ReportWorker` para garantir que jobs falhados não são perdidos, mas sim isolados para auditoria técnica. |
 
 ---
 
