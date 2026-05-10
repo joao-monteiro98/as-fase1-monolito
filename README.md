@@ -65,7 +65,7 @@ graph TD
     style Core_Layer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
 ```
 
-### Diagrama de Arquitetura (Fase 2 - WQW e Pub/Sub)
+### Diagrama de Arquitetura (Fase 2 - WQW, Pub/Sub e DLQ)
 
 ```mermaid
 graph TD
@@ -78,13 +78,14 @@ graph TD
         Service[FleetService]
         Worker[ReportWorker]
         Consumers[Notification & Audit Consumers]
-        Ports[[Portos: IJobQueue, IEventBus, ILogger]]
+        Ports[[Portos: IJobQueue, IEventBus, ILogger, IDLQ]]
     end
 
     subgraph Infra [Adaptadores de Saída]
         Queue[(InMemoryJobQueue)]
         Bus((InMemoryEventBus))
         Logger[ConsoleLogger]
+        DLQ[(InMemoryDLQ)]
     end
 
     Middleware -->|Gera CorrelationID| Router
@@ -92,12 +93,15 @@ graph TD
     Router -->|Adiciona Job| Queue
     Queue -.->|Ativa via Padrão WQW| Worker
     Worker -->|Emite Evento no Passado| Bus
+    Worker -.->|Falha Definitiva após 3 Retries| DLQ
     Bus -.->|Padrão Pub/Sub| Consumers
     
-    Worker -->|Regista Estado| Logger
+    Worker -->|Regista Estado/Erro| Logger
     Consumers -->|Regista Ação| Logger
+    DLQ -->|Alerta de Mensagem Morta| Logger
     
     style Core fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style DLQ fill:#ffebee,stroke:#c62828,stroke-width:2px
 ```
 ---
 

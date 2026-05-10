@@ -1,6 +1,6 @@
 // src/infrastructure/queue/InMemoryJobQueue.js
 const IJobQueue = require('../../core/ports/IJobQueue');
-const crypto = require('crypto'); // Nativo do Node para gerar UUIDs
+const crypto = require('crypto');
 
 class InMemoryJobQueue extends IJobQueue {
     constructor() {
