@@ -9,43 +9,46 @@ const ConsoleLogger = require('./infrastructure/logging/ConsoleLogger');
 const InMemoryJobQueue = require('./infrastructure/queue/InMemoryJobQueue');
 const InMemoryJobStore = require('./infrastructure/database/InMemoryJobStore');
 const InMemoryEventBus = require('./infrastructure/events/InMemoryEventBus');
+const InMemoryDLQ = require('./infrastructure/queue/InMemoryDLQ');
 
 const ReportWorker = require('./core/workers/ReportWorker');
 const NotificationConsumer = require('./core/consumers/NotificationConsumer');
 const AuditConsumer = require('./core/consumers/AuditConsumer');
 
-// 1. Instanciar Infraestrutura e Utilitários Transversais
+// Instanciamos Infraestrutura e Utilitários Transversais
 const logger = new ConsoleLogger();
 const eventBus = new InMemoryEventBus();
 const jobQueue = new InMemoryJobQueue();
 const jobStore = new InMemoryJobStore();
 
-// (Mantém a tua instância da Fase 1 aqui)
+// Instanciamos a Dead-Letter Queue
+const dlq = new InMemoryDLQ(logger);
+
+// Instâncias da Fase 1
 const vehicleRepo = new InMemoryVehicleRepo();
 const fleetService = new FleetService(vehicleRepo);
 
-// 2. Instanciar e Ligar Consumidores (Subscritores)
-// Passamos o logger também se tiveres atualizado os consumers no Passo 3
+// Instanciamos e ligamos os consumidores (subscritores)
 const notificationConsumer = new NotificationConsumer(eventBus, logger);
 const auditConsumer = new AuditConsumer(eventBus, logger);
 
-// Ativar os consumidores (eles ficam à escuta do EventBus)
+// Ativamos os consumidores
 notificationConsumer.start();
 auditConsumer.start();
+    
+// Instanciamos e ligamos o Worker (Produtor) - Passando a DLQ como 5º argumento
+const reportWorker = new ReportWorker(jobQueue, jobStore, eventBus, logger, dlq);
 
-// 3. Instanciar e Ligar o Worker (Produtor)
-const reportWorker = new ReportWorker(jobQueue, jobStore, eventBus, logger);
-
-// Ativar o worker (ele fica à escuta da JobQueue)
+// Ativamos o worker
 reportWorker.start();
 
-// 4. Configurar as Rotas da API
+// Configuramos as rotas da API - Injetando as dependências necessárias
 // Injetamos a fila e a store na rota de relatórios para a API não conhecer o domínio
 const reportRoutes = require('./api/routes/reportRoutes')(jobQueue, jobStore);
 
 // Exportamos tudo o que a API precisa para arrancar
 module.exports = {
-    fleetService,   // Da Fase 1
-    reportRoutes,   // Da Fase 2
-    logger          // Exportamos o logger caso o server.js queira usar
+    fleetService,   
+    reportRoutes,   
+    logger          
 };

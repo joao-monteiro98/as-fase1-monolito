@@ -1,12 +1,13 @@
 // src/core/workers/ReportWorker.js
 
 class ReportWorker {
-    constructor(jobQueue, jobStore, eventBus, logger) {
+    constructor(jobQueue, jobStore, eventBus, logger, dlq) {
         this.jobQueue = jobQueue;
         this.jobStore = jobStore;
         this.eventBus = eventBus;
         this.logger = logger;
-        this.MAX_RETRIES = 3; // Limite máximo de tentativas
+        this.dlq = dlq;
+        this.MAX_RETRIES = 3;
     }
 
     start() {
@@ -21,38 +22,33 @@ class ReportWorker {
                 try {
                     this.logger.info(`⚙️ Processar job ${jobId} (Tentativa ${attempt}/${this.MAX_RETRIES})...`, correlationId);
 
-                    // === INJEÇÃO DE FALHA (Para a Prova de Conceito) ===
-                    // Se enviarmos o veículo 'FAIL', o sistema "rebenta" de propósito
                     if (payload.vehicleId === 'FAIL') {
-                        throw new Error("Falha temporária simulada na ligação ao sistema de GPS.");
+                        throw new Error("Falha crítica: Perda de ligação ao GPS do veículo.");
                     }
 
-                    // Simula o processamento normal (2 segundos)
                     await new Promise(resolve => setTimeout(resolve, 2000));
-                    
                     const reportResult = { reportUrl: `/reports/download/req-${payload.vehicleId}` };
                     
-                    // Atualiza a base de dados e dispara o evento
                     await this.jobStore.updateStatus(jobId, 'DONE', reportResult);
-                    this.logger.info(`Job ${jobId} concluído com sucesso!`, correlationId);
+                    this.logger.info(`✅ Job ${jobId} concluído.`, correlationId);
                     this.eventBus.publish('RelatorioGerado', reportResult, correlationId);
-                    
-                    success = true; // Quebra o ciclo while
+                    success = true;
 
                 } catch (error) {
-                    this.logger.error(`⚠️ Erro no job ${jobId} (Tentativa ${attempt}): ${error.message}`, correlationId);
+                    this.logger.error(`Erro na tentativa ${attempt}: ${error.message}`, correlationId);
 
                     if (attempt < this.MAX_RETRIES) {
-                        // Exponential Backoff: Espera 2s, 4s, 8s...
                         const delay = Math.pow(2, attempt) * 1000;
-                        this.logger.info(`⏳ A aguardar ${delay}ms antes da próxima tentativa...`, correlationId);
-                        
+                        this.logger.info(`⏳ Backoff: Aguardar ${delay}ms...`, correlationId);
                         await new Promise(resolve => setTimeout(resolve, delay));
                         attempt++;
                     } else {
-                        // Esgotou as tentativas, marca como FAILED definitivamente
+                        // DLQ: Após a última tentativa, movemos o job para a Dead-Letter Queue
                         await this.jobStore.updateStatus(jobId, 'FAILED', { error: error.message });
-                        this.logger.error(`Falha definitiva no job ${jobId} após ${this.MAX_RETRIES} tentativas.`, correlationId, error);
+                        
+                        this.dlq.push(jobId, payload, error.message, correlationId);
+                        
+                        this.logger.error(`Job ${jobId} falhou definitivamente. Movido para DLQ.`, correlationId);
                         break;
                     }
                 }
